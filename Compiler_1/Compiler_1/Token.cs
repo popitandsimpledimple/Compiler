@@ -1,21 +1,22 @@
-﻿namespace Lexer
+namespace Lexer
 {
     public enum TokenType
     {
+        CHAR,// # - char
         NONE,
         REAL,
-        INT,
-        CHAR,
+        INT,  
         STRING,
         IDENTIFIER,
         KEYWORD,
         OPERATOR,
-        SEPARATORS
+        SEPARATORS,
+        EOF
     }
 
     public class Token
     {
-        public Token(TokenType tokenType, string source, object value)
+        public Token(TokenType tokenType, object value, string source )
         {
             TokenType = tokenType;
             Source = source;
@@ -30,7 +31,7 @@
 
         public override string ToString()
         {
-            return $"{TokenType}\t{Source}\t{Value}";
+            return $"{TokenType}\t{Value}\t{Source}";
         }
     }
 
