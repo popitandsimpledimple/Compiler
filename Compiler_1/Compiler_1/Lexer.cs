@@ -1,28 +1,29 @@
 using System;
+using System.Globalization;
+
 namespace Lexer;
 public class Lexer
 {
-    private StreamReader _reader;
-    private string _buffer;
+    private StreamReader _text;
+    private string _clipboard;
     
     char Read()
     {
-        var c = (char)_reader.Read();
-        _buffer += c;
+        var c = (char)_text.Read();
+        _clipboard += c;
         return c;
+        
     }
-    bool EOF()
+   
+    public Lexer(StreamReader reader) 
     {
-      return _reader.EndOfStream;
-    }
-    public Lexer(StreamReader reader) //StreamReader предназначен для ввода символов в определенной кодировке
-    {
-        _reader = reader;
+        _text = reader;
     }
     public Token NextToken()
     {
-        _buffer = "";
-        var c = (char)_reader.Peek();
+        _clipboard = "";
+        var c = (char)_text.Peek();
+        
 
 
         if (c == '#')
@@ -40,27 +41,27 @@ public class Lexer
         {
             if (c == '\'')
             {
-                for (;;)  // диапозон работ
+                for (; ; )  
                 {
                     Read();
-                    if (_reader.Peek() == '\'')
+                    if (_text.Peek() == '\'')
                     {
                         Read();
                         break;
                     }
                 }
-                return new Token(TokenType.STRING, _buffer, _buffer);
+                return new Token(TokenType.STRING, _clipboard, _clipboard);
             }
 
-            if (c == '/') 
+            if (c == '/')
             {
                 Read();
-                if (_reader.Peek() == '/')
+                if (_text.Peek() == '/')
                 {
-                    while (_reader.Peek() != '\n')
+                    while (_text.Peek() != '\n')
                     {
                         Read();
-                        if (EOF())
+                        if (_text.EndOfStream)
                             break;
                     }
                 }
@@ -69,16 +70,16 @@ public class Lexer
             if (c == '{')
             {
                 Read();
-                while (_reader.Peek() != '}')
+                while (_text.Peek() != '}')
                 {
                     Read();
-                    if (EOF())
+                    if (_text.EndOfStream)
                         break;
                 }
             }
 
 
-            if ((_reader.Peek() is >= 'a' and <= 'z') || (_reader.Peek() is >= 'A' and <= 'Z') || (_reader.Peek() is '_')) 
+            if ((_text.Peek() is >= 'a' and <= 'z') || (_text.Peek() is >= 'A' and <= 'Z') || (_text.Peek() is '_'))
             {
                 Read();
                 return Id();
@@ -93,224 +94,250 @@ public class Lexer
 
             Read();
 
-            switch (_buffer)
+            switch (_clipboard)
             {
-                case "[": return new Token(TokenType.SEPARATORS, "LSBRACKET", _buffer);
-                case "]": return new Token(TokenType.SEPARATORS, "RSBRACKET", _buffer);
-                case "(": return new Token(TokenType.SEPARATORS, "LRBRACKET", _buffer);
-                case ")": return new Token(TokenType.SEPARATORS, "RRBRACKET", _buffer);
-                case ".": return new Token(TokenType.SEPARATORS, "DOT", _buffer);
-                case ",": return new Token(TokenType.SEPARATORS, "COMMA", _buffer);
-                case ";": return new Token(TokenType.SEPARATORS, "SEM", _buffer);
-                case "..": return new Token(TokenType.SEPARATORS, "RANGE", _buffer);
-                case "=": return new Token(TokenType.OPERATOR, "Equal", _buffer);
-                case ":":
+                case "[": return new Token(TokenType.SEPARATORS, Separators.LSBRACKET, _clipboard);
+                case "]": return new Token(TokenType.SEPARATORS, Separators.RSBRACKET, _clipboard);
+                case ")": return new Token(TokenType.SEPARATORS, Separators.RRBRACKET, _clipboard);
+                case ".": return new Token(TokenType.SEPARATORS, Separators.DOT, _clipboard);
+                case ",": return new Token(TokenType.SEPARATORS, Separators.COMMA, _clipboard);
+                case ";": return new Token(TokenType.SEPARATORS, Separators.SEM, _clipboard);
+                case "..": return new Token(TokenType.SEPARATORS, Separators.RANGE, _clipboard);
+                case "=": return new Token(TokenType.OPERATOR, Operator.Equal, _clipboard);
+                case "(":
                     {
-                        if (_reader.Peek() == '=')
+                        if (_text.Peek() == '*')
                         {
                             Read();
-                            if (_buffer == ":=")
+                            for (; ; )
                             {
-                                return new Token(TokenType.OPERATOR, "Assign", _buffer);
+                                Read();
+                                if (_clipboard.EndsWith('*') && (_text.Peek() == ')'))
+                                {
+                                    Read();
+                                    return NextToken();
+                                }
+                                if (_text.EndOfStream)
+                                {
+                                    return new Token(TokenType.NONE, ' ', _clipboard);
+                                }
+                                
                             }
                         }
-                        return new Token(TokenType.SEPARATORS, "COL", _buffer);
+                        return new Token(TokenType.SEPARATORS, Separators.LRBRACKET, _clipboard);
+                    }
+                case ":":
+                    {
+                        if (_text.Peek() == '=')
+                        {
+                            Read();
+                            if (_clipboard == ":=")
+                            {
+                                return new Token(TokenType.OPERATOR, Operator.Assign, _clipboard);
+                            }
+                        }
+                        return new Token(TokenType.SEPARATORS, Separators.COL, _clipboard);
                     }
                 case "<":
                     {
-                        if ((_reader.Peek() == '=')||(_reader.Peek() == '>')|| (_reader.Peek() == '<')) 
+                        if ((_text.Peek() == '=') || (_text.Peek() == '>') || (_text.Peek() == '<'))
                         {
                             Read();
-                            if (_buffer == "<=")
+                            if (_clipboard == "<=")
                             {
-                                return new Token(TokenType.OPERATOR, "LessThanOrEqual", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.LessThanOrEqual, _clipboard);
                             }
-                            if (_buffer == "<>")
+                            if (_clipboard == "<>")
                             {
-                                return new Token(TokenType.OPERATOR, "NotEqual", _buffer);
-                            }
-                            if (_buffer == "<<")
-                            {
-                                return new Token(TokenType.OPERATOR, "BitwiseShiftToTheLeft", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.NotEqual, _clipboard);
                             }
 
                         }
-                        return new Token(TokenType.SEPARATORS, "LessThan", _buffer);
+                        return new Token(TokenType.SEPARATORS, Separators.LessThan, _clipboard);
                     }
                 case ">":
                     {
-                        if ((_reader.Peek() == '=')||(_reader.Peek() == '>'))
+                        if ((_text.Peek() == '=') || (_text.Peek() == '>'))
                         {
                             Read();
-                            if (_buffer == ">=")
+                            if (_clipboard == ">=")
                             {
-                                return new Token(TokenType.OPERATOR, "GreaterOrEqual", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.GreaterOrEqual, _clipboard);
                             }
-                            if (_buffer == ">>")
-                            {
-                                return new Token(TokenType.OPERATOR, "BitwiseShiftToTheRight", _buffer);
-                            }
+
                         }
-                        return new Token(TokenType.SEPARATORS, "GreaterThan", _buffer);
-                    }                   
+                        return new Token(TokenType.SEPARATORS, Separators.GreaterThan, _clipboard);
+                    }
                 case "+":
                     {
-                        if (_reader.Peek() == '=')
+                        if (_text.Peek() == '=')
                         {
                             Read();
-                            if (_buffer == "+=")
+                            if (_clipboard == "+=")
                             {
-                                return new Token(TokenType.OPERATOR, "AdditionAssign", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.AdditionAssign, _clipboard);
                             }
                         }
-                        return new Token(TokenType.SEPARATORS, "Addition", _buffer);
+                        return new Token(TokenType.SEPARATORS, Separators.Addition, _clipboard);
                     }
                 case "-":
                     {
-                        if (_reader.Peek() == '=')
+                        if (_text.Peek() == '=')
                         {
                             Read();
-                            if (_buffer == "-=")
+                            if (_clipboard == "-=")
                             {
-                                return new Token(TokenType.OPERATOR, "SubtractionAssign", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.SubtractionAssign, _clipboard);
                             }
                         }
-                        return new Token(TokenType.SEPARATORS, "Subtraction", _buffer);
+                        return new Token(TokenType.SEPARATORS, Separators.Subtraction, _clipboard);
                     }
                 case "*":
                     {
-                        if (_reader.Peek() == '=')
+                        if (_text.Peek() == '=')
                         {
                             Read();
                             Read();
-                            if (_buffer == "*=")
+                            if (_clipboard == "*=")
                             {
-                                return new Token(TokenType.OPERATOR, "MultiplicationAssign", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.MultiplicationAssign, _clipboard);
                             }
                         }
-                        return new Token(TokenType.OPERATOR, "Multiplication", _buffer);
+                        return new Token(TokenType.OPERATOR, Operator.Multiplication, _clipboard);
                     }
                 case "/":
                     {
-                        if (_reader.Peek() == '=')
+                        if (_text.Peek() == '=')
                         {
                             Read();
-                            if (_buffer == "/=")
+                            if (_clipboard == "/=")
                             {
-                                return new Token(TokenType.OPERATOR, "DivisionAssign", _buffer);
+                                return new Token(TokenType.OPERATOR, Operator.DivisionAssign, _clipboard);
                             }
                         }
-                        return new Token(TokenType.OPERATOR, "Division", _buffer);
+                        return new Token(TokenType.OPERATOR, Operator.Division, _clipboard);
                     }
             }
 
             {
-                if (EOF())
-                return new Token(TokenType.EOF,' ', _buffer);
+                if (_text.EndOfStream)
+                    return new Token(TokenType.EOF, ' ', _clipboard);
             }
         }
 
         return NextToken();
     }
 
+    bool IsDigit(char c, int numeralSystem)
+    {
+        return numeralSystem switch
+        {
+            10 => '0' <= c && c <= '9',
+            16 => ('a' <= c && c <= 'f' || 'A' <= c && c <= 'F' || '0' <= c && c <= '9'),
+            2 => '0' <= c && c <= '1',
+            8 => '0' <= c && c <= '7',
+        };
+    }
+
 
     Token NumChar()
     {
-        if (_buffer == "#")
+        if (_clipboard == "#")
         {
-            if ('0' <= _reader.Peek() && _reader.Peek() <= '9')
+            if (IsDigit((char) _text.Peek(), 10))
             {
-                while ('0' <= _reader.Peek() && _reader.Peek() <= '9')
+                while ('0' <= _text.Peek() && _text.Peek() <= '9')
                 {
                     Read();
                 }
-                return new Token(TokenType.CHAR, _buffer, _buffer);
+
+                if (_text.Peek() == '.')
+                {
+                    Read();
+                    if (_text.Peek() != '.')
+                        while ('0' <= _text.Peek() && _text.Peek() <= '9')
+                            Read();
+                    return new Token(TokenType.DOUBLE, _clipboard, _clipboard);
+                }
+
+                return new Token(TokenType.CHAR, _clipboard, _clipboard);
             }
         }
-        return new Token(TokenType.NONE, _buffer, _buffer);
+        return new Token(TokenType.NONE, _clipboard, _clipboard);
     }
 
-   Token NumSystem()
+
+
+    Token NumSystem()
     {
-        if (_buffer == "%")                                  
+        int numeralSystem = _clipboard switch
         {
-            if ('0' <= _reader.Peek() && _reader.Peek() <= '1')
-            {
-                while ('0' <= _reader.Peek() && _reader.Peek() <= '1')
-                {
-                    Read();
-                }
-                return new Token(TokenType.INT, _buffer, _buffer);
-            }
-            return new Token(TokenType.NONE, _buffer, _buffer);
-        }
+            "%" => 2,
+            "&" => 8,
+            "$" => 16,
+            _ => 10
+        };
+
+        while (IsDigit((char) _text.Peek(), numeralSystem))
         {
-            if (_buffer == "&")
+            Read();
+            
+            if (_text.Peek() == '.')
             {
-                if ('0' <= _reader.Peek() && _reader.Peek() <= '7')
-                {
-                    while ('0' <= _reader.Peek() && _reader.Peek() <= '7')
-                    {
+                Read();
+                if (_text.Peek() != '.')
+                    while ('0' <= _text.Peek() && _text.Peek() <= '9')
                         Read();
-                    }
-                    return new Token(TokenType.INT, _buffer, _buffer);
-                }
-                return new Token(TokenType.NONE, _buffer, _buffer);
             }
 
-            if (_buffer == "$")
-            {
-                if (('0' <= _reader.Peek() && _reader.Peek() <= '9') || ('A' <= _reader.Peek() && _reader.Peek() <= 'F') || ('a' <= _reader.Peek() && _reader.Peek() <= 'f'))
-                {
-                    while (('0' <= _reader.Peek() && _reader.Peek() <= '9') || ('A' <= _reader.Peek() && _reader.Peek() <= 'F') || ('a' <= _reader.Peek() && _reader.Peek() <= 'f'))
-                    {
-                        Read();
-                    }
-                    return new Token(TokenType.INT, _buffer, _buffer);
-                }
-                return new Token(TokenType.NONE, _buffer, _buffer);
-            }
-                return new Token(TokenType.NONE, _buffer, _buffer);
         }
 
-   }
+        return new Token(TokenType.INT, _clipboard, _clipboard);
+
+        if (_clipboard.Length == 1)
+        {
+            return new Token(TokenType.NONE, _clipboard, _clipboard);
+        }
+
+        return new Token(TokenType.INT, _clipboard, _clipboard);
+
+    }
 
 
     Token Number()
     {
-        while ('0' <= _reader.Peek() && _reader.Peek() <= '9')
+        while ('0' <= _text.Peek() && _text.Peek() <= '9')
         {
             Read();
         }
 
-        if (_reader.Peek() == '.')
+        if (_text.Peek() == '.')
         {
             Read();
-            if (_reader.Peek() != '.') 
-                while ('0' <= _reader.Peek() && _reader.Peek() <= '9')
+            if (_text.Peek() != '.')
+                while ('0' <= _text.Peek() && _text.Peek() <= '9')
                     Read();
-            return new Token(TokenType.REAL, _buffer, _buffer);
+            return new Token(TokenType.DOUBLE, _clipboard, _clipboard);
         }
-        return new Token(TokenType.INT, _buffer, _buffer);
+        return new Token(TokenType.INT, _clipboard, _clipboard);
     }
     Token Id()
     {
-        while (('a' <= _reader.Peek() && _reader.Peek() <= 'z') || ('1' <= _reader.Peek() && _reader.Peek() <= '9') ||
-               '_' <= _reader.Peek() || ('A' <= _reader.Peek() && _reader.Peek() <= 'Z'))
+        while (('a' <= _text.Peek() && _text.Peek() <= 'z') || ('1' <= _text.Peek() && _text.Peek() <= '9') ||
+               '_' <= _text.Peek() || ('A' <= _text.Peek() && _text.Peek() <= 'Z'))
         {
             Read();
         }
 
+        TextInfo ti = CultureInfo.CurrentCulture.TextInfo;
+        string keyword = ti.ToLower(_clipboard);
+        if (Enum.IsDefined(typeof(Keywords), ti.ToTitleCase(keyword)))
+            {
+                return new Token(TokenType.KEYWORD, _clipboard, _clipboard); 
+            }
+        return new Token(TokenType.IDENTIFIER, _clipboard, _clipboard);
 
-        if (Enum.IsDefined(typeof(Keywords), _buffer))
-        {
-            return new Token(TokenType.KEYWORD, _buffer, _buffer);
-        }
-        return new Token(TokenType.IDENTIFIER, _buffer, _buffer);
-        
     }
-
-   
 
     public enum Keywords
     {
@@ -423,5 +450,39 @@ public class Lexer
         Readln
     }
 
-}  
+
+    public enum Operator
+    {
+        Equal,
+        Assign,
+        LessThanOrEqual,
+        NotEqual,
+        GreaterOrEqual,
+        AdditionAssign,
+        SubtractionAssign,
+        MultiplicationAssign,
+        Multiplication,
+        DivisionAssign,
+        Division
+    }
+
+    public enum Separators
+    {
+        LSBRACKET,
+        RSBRACKET,
+        LRBRACKET,
+        RRBRACKET,
+        DOT,
+        COMMA,
+        SEM,
+        RANGE,
+        COL,
+        LessThan,
+        GreaterThan,
+        Addition,
+        Subtraction
+
+    }
+
+}
 
