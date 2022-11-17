@@ -2,9 +2,9 @@ namespace Lexer
 {
     public enum TokenType
     {
-        CHAR,// # - char
+        CHAR,
         NONE,
-        REAL,
+        DOUBLE,
         INT,  
         STRING,
         IDENTIFIER,
