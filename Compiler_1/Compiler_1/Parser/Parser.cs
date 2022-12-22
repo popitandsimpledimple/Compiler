@@ -20,7 +20,7 @@ namespace Compiler_1.Parser
             _buffer = readToken.NextToken();
         }
 
-
+//вввв
 
     }
 }
