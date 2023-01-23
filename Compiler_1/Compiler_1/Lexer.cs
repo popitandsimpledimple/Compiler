@@ -6,13 +6,13 @@ public class Lexer
 {
     private StreamReader _text;
     private string _clipboard;
-    
+    //private Position _lastTokenPosition;
+
     char Read()
     {
         var c = (char)_text.Read();
         _clipboard += c;
         return c;
-        
     }
    
     public Lexer(StreamReader reader) 
@@ -21,10 +21,9 @@ public class Lexer
     }
     public Token NextToken()
     {
+        //_lastTokenPosition = new Position(1, 0);
         _clipboard = "";
         var c = (char)_text.Peek();
-        
-
 
         if (c == '#')
         {
@@ -197,7 +196,7 @@ public class Lexer
                         if (_text.Peek() == '=')
                         {
                             Read();
-                            Read();
+                            
                             if (_clipboard == "*=")
                             {
                                 return new Token(TokenType.OPERATOR, Operator.MultiplicationAssign, _clipboard);
@@ -224,7 +223,7 @@ public class Lexer
                     return new Token(TokenType.EOF, ' ', _clipboard);
             }
         }
-
+       // _lastTokenPosition = new Position(1, 1);
         return NextToken();
     }
 
@@ -278,21 +277,17 @@ public class Lexer
             _ => 10
         };
 
-        while (IsDigit((char) _text.Peek(), numeralSystem))
+        object value;
+
+        while (IsDigit((char)_text.Peek(), numeralSystem))
         {
             Read();
+            //Console.WriteLine("->{0}, {1}", _clipboard, Convert.ToInt32(_clipboard.Substring(1, _clipboard.Length - 1), numeralSystem));
             
-            if (_text.Peek() == '.')
-            {
-                Read();
-                if (_text.Peek() != '.')
-                    while ('0' <= _text.Peek() && _text.Peek() <= '9')
-                        Read();
-            }
-
         }
+        value = Convert.ToInt32(_clipboard[1..], numeralSystem);
 
-        return new Token(TokenType.INT, _clipboard, _clipboard);
+        return new Token(TokenType.INT, value, _clipboard);
 
         if (_clipboard.Length == 1)
         {
@@ -485,4 +480,3 @@ public class Lexer
     }
 
 }
-
